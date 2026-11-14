@@ -52,7 +52,9 @@ O Express serve os arquivos de `dist` e a rota `/api/apod` na porta `3000`. Para
 
 ## API e segurança
 
-O navegador consulta apenas `GET /api/apod?date=AAAA-MM-DD`. O servidor valida datas entre `1995-06-16` e a data atual em UTC, consulta `https://api.nasa.gov/planetary/apod` usando `NASA_API_KEY` e retorna os campos necessários. A chave não é enviada ao navegador nem registrada nos logs. A chamada à NASA usa `thumbs=true` para receber uma prévia quando o APOD é vídeo.
+O navegador consulta apenas `GET /api/apod?date=AAAA-MM-DD`. O servidor valida datas entre `1995-06-16` e a data atual do APOD em `America/New_York`, consulta primeiro `https://api.nasa.gov/planetary/apod` usando `NASA_API_KEY` e retorna os campos necessários. Se a API principal falhar ou retornar a imagem genérica da NASA, o servidor consulta o artigo correspondente na API REST oficial da NASA Science, sem enviar a chave. O HTML do artigo é analisado no servidor e somente texto e URLs validadas são retornados ao navegador.
+
+A chave nunca é enviada ao navegador nem registrada nos logs. A chamada primária usa `thumbs=true` para receber uma prévia quando o APOD é vídeo. Os dois provedores são consultados apenas no servidor e têm timeout independente.
 
 Imagens são exibidas de forma responsiva; quando a NASA retorna o logotipo genérico no lugar da mídia, o servidor informa erro em vez de apresentá-lo como APOD. Vídeos de YouTube e Vimeo reconhecidos são carregados após a pessoa selecionar “Reproduzir vídeo”; fontes não reconhecidas são oferecidas como links externos seguros. Estados de carregamento e erro são anunciados na interface.
 
@@ -62,7 +64,8 @@ Imagens são exibidas de forma responsiva; quando a NASA retorna o logotipo gen�
 - `src/client/main.ts`: consulta ao proxy, estados da interface e renderização de imagem/vídeo.
 - `src/client/styles.css`: estilos responsivos e acessíveis.
 - `src/server/index.ts`: servidor Express, endpoint local e arquivos de produção.
-- `src/server/apod.ts`: validação de datas, consulta à NASA e normalização da resposta.
+- `src/server/apod.ts`: validação de datas, consulta primária à API APOD, fallback na NASA Science e normalização segura das respostas.
+- `src/shared/apod-date.ts`: calcula a data atual do APOD usando o fuso `America/New_York` compartilhado entre cliente e servidor.
 - `tests/apod.test.mjs`: testes das datas, respostas e falhas do serviço APOD.
 
 ## Registro de cinco interações com o Copilot

@@ -6,9 +6,11 @@ Estas instrucoes se aplicam a todo o repositorio. O projeto deve exibir a imagem
 
 - Use Node.js em versao LTS para receber atualizacoes de seguranca e suporte; use TypeScript no servidor e no codigo do navegador para tipar o contrato entre as partes e detectar incompatibilidades durante o desenvolvimento.
 - Use Vite para servir e compilar o frontend, com configuracao pequena para esta pagina, e Express para criar o endpoint de proxy do servidor. O proxy mantem a chave fora do cliente e fornece um unico ponto para validar datas e tratar falhas da NASA.
+- Use `node-html-parser` somente no servidor para extrair texto e midia do artigo de fallback da NASA Science; nao encaminhe nem renderize HTML externo no navegador.
 - Construa a interface com HTML semantico e CSS nativo; nao adicione React, Vue, Angular, bibliotecas de componentes, frameworks CSS ou estilos inline. Para uma pagina, HTML e CSS sem camada de componentes reduzem dependencias e facilitam responsividade e acessibilidade.
 - Use `fetch`, disponivel no navegador e no Node.js LTS, para chamadas HTTP; nao adicione uma biblioteca de cliente HTTP nem chame a API da NASA diretamente do navegador.
-- A API de dados e `GET https://api.nasa.gov/planetary/apod`. A consulta de um dia usa `date=YYYY-MM-DD`; a resposta APOD inclui `date`, `title`, `explanation`, `media_type` e `url`, e pode incluir `hdurl`. Para video, solicite `thumbs=true` e aceite `thumbnail_url` quando disponivel. Trate `media_type` como discriminador: no minimo, suporte `image` e `video`.
+- A fonte primaria de dados e `GET https://api.nasa.gov/planetary/apod`. A consulta de um dia usa `date=YYYY-MM-DD`; a resposta APOD inclui `date`, `title`, `explanation`, `media_type` e `url`, e pode incluir `hdurl`. Para video, solicite `thumbs=true` e aceite `thumbnail_url` quando disponivel. Trate `media_type` como discriminador: no minimo, suporte `image` e `video`.
+- Se a API primaria falhar, retornar dados invalidos ou a imagem generica da NASA, use como fallback o artigo do dia em `https://science.nasa.gov/wp-json/wp/v2/image-article`. Confirme o slug APOD e a data exata, extraia somente titulo, explicacao e URLs HTTPS de imagem/video; nunca envie a chave ao fallback.
 
 ## Arquitetura do sistema
 
@@ -17,9 +19,10 @@ Estas instrucoes se aplicam a todo o repositorio. O projeto deve exibir a imagem
   - `src/client/main.ts`: consulta o endpoint local, controla data e estados da interface, e renderiza os dados.
   - `src/client/styles.css`: todos os estilos e regras responsivas.
   - `src/server/index.ts`: inicializa Express e expoe `GET /api/apod`.
-  - `src/server/apod.ts`: valida a data, consulta exclusivamente a API APOD da NASA e converte a resposta para o contrato usado pelo cliente.
+  - `src/server/apod.ts`: valida a data, consulta a API APOD primaria, aplica fallback na API oficial da NASA Science e converte a resposta para o contrato usado pelo cliente.
+  - `src/shared/apod-date.ts`: calcula a data atual do APOD em `America/New_York`, compartilhada pelo frontend e backend.
 - O navegador deve chamar somente `/api/apod?date=YYYY-MM-DD`. Na primeira abertura, solicite a data atual; ao selecionar outra data valida, solicite e exiba o APOD correspondente.
-- Valide a data no servidor: formato e data de calendario validos, entre `1995-06-16` (primeiro dia do APOD) e a data atual em UTC, inclusive. Rejeite entrada invalida com status HTTP apropriado e mensagem segura. Nao aceite URL de destino fornecida pelo cliente.
+- Valide a data no servidor: formato e data de calendario validos, entre `1995-06-16` (primeiro dia do APOD) e a data atual em `America/New_York`, inclusive. Rejeite entrada invalida com status HTTP apropriado e mensagem segura. Nao aceite URL de destino fornecida pelo cliente.
 - Modele a resposta com tipos TypeScript. Trate explicitamente respostas HTTP malsucedidas, JSON invalido, campos necessarios ausentes e tipos de midia desconhecidos; nao mostre sucesso vazio nem esconda erros.
 - Para `image`, use uma imagem responsiva com texto alternativo significativo. Para `video`, incorpore somente URLs reconhecidas e transformadas para hosts de video permitidos; use `thumbnail_url` como previa quando houver e ofereca um link externo seguro como alternativa. Nunca crie um `iframe` para um host arbitrario.
 - A pagina deve ter estados distintos de carregamento, sucesso e erro. Mantenha titulo, data e explicacao associados a midia exibida, inclusive apos uma nova consulta.
@@ -38,7 +41,7 @@ Estas instrucoes se aplicam a todo o repositorio. O projeto deve exibir a imagem
 
 - Leia a chave exclusivamente de `process.env.NASA_API_KEY` no servidor. Nunca inclua uma chave real no codigo, HTML, arquivos versionados, resposta do proxy, logs, mensagens de erro, configuracao do Vite ou variavel com prefixo publico (`VITE_`).
 - Mantenha arquivos `.env` fora do Git. Se criar `.env.example`, inclua somente um valor obviamente ficticio, nunca uma chave utilizavel. Em producao, configure a chave no gerenciador de segredos do ambiente de hospedagem.
-- O servidor deve enviar a chave somente na requisicao de saida para o host fixo `api.nasa.gov`. Nao registre a URL completa da requisicao, pois ela contem a chave. Retorne ao cliente apenas os campos APOD necessarios e erros genericos; nunca encaminhe a chave ou detalhes internos.
+- O servidor deve enviar a chave somente na requisicao primaria de saida para o host fixo `api.nasa.gov`; a requisicao de fallback a `science.nasa.gov` nao recebe chave. Nao registre a URL completa da requisicao primaria, pois ela contem a chave. Retorne ao cliente apenas os campos APOD necessarios e erros seguros; nunca encaminhe a chave ou detalhes internos.
 - Valide a data antes de consultar a NASA e aplique timeout a requisicao de saida. Nao permita que parametros do usuario alterem host, caminho ou outros parametros da chamada externa.
 - Trate titulo, explicacao, URLs e demais dados da API como entrada externa: insira texto como texto, nunca como HTML executavel. Use apenas URLs HTTPS; para embeds, aplique a lista permitida definida na arquitetura. Adicione `rel="noopener noreferrer"` a links externos abertos em nova aba.
 - Verifique que a chave nao aparece no bundle do frontend, no trafego entre navegador e servidor ou nos logs. Nunca use `DEMO_KEY` como solucao de producao.
@@ -47,6 +50,7 @@ Estas instrucoes se aplicam a todo o repositorio. O projeto deve exibir a imagem
 
 - [NASA APIs — cadastro e acesso a APIs](https://api.nasa.gov/).
 - [NASA APOD API — parametros, limites de data e campos da resposta](https://github.com/nasa/apod-api).
+- [NASA Science — API REST oficial de artigos APOD](https://science.nasa.gov/wp-json/wp/v2/image-article).
 - [GitHub Docs — instrucoes personalizadas por repositorio](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions).
 - [Node.js — versoes LTS](https://nodejs.org/en/about/previous-releases).
 - [Vite — guia oficial](https://vite.dev/guide/).

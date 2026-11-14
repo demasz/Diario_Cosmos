@@ -1,3 +1,4 @@
+import { FIRST_APOD_DATE, getApodCurrentDate } from "../shared/apod-date.ts";
 import "./styles.css";
 
 interface Apod {
@@ -67,9 +68,8 @@ const submitButton = requiredElement<HTMLButtonElement>(
   "#date-form button[type='submit']",
 );
 
-const firstApodDate = "1995-06-16";
-const today = new Date().toISOString().slice(0, 10);
-dateInput.min = firstApodDate;
+const today = getApodCurrentDate();
+dateInput.min = FIRST_APOD_DATE;
 dateInput.max = today;
 dateInput.value = today;
 

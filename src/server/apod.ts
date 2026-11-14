@@ -1,3 +1,6 @@
+import { parse } from "node-html-parser";
+import { FIRST_APOD_DATE, getApodCurrentDate } from "../shared/apod-date.ts";
+
 export interface Apod {
   date: string;
   title: string;
@@ -13,18 +16,15 @@ type ApodErrorStatus = 400 | 502 | 503 | 504;
 export class ApodError extends Error {
   readonly statusCode: ApodErrorStatus;
 
-  constructor(
-    message: string,
-    statusCode: ApodErrorStatus,
-  ) {
+  constructor(message: string, statusCode: ApodErrorStatus) {
     super(message);
     this.name = "ApodError";
     this.statusCode = statusCode;
   }
 }
 
-const FIRST_APOD_DATE = "1995-06-16";
-const REQUEST_TIMEOUT_MS = 10_000;
+const NASA_API_TIMEOUT_MS = 10_000;
+const NASA_SCIENCE_TIMEOUT_MS = 8_000;
 
 export function validateApodDate(input: unknown, now = new Date()): string {
   if (
@@ -36,7 +36,7 @@ export function validateApodDate(input: unknown, now = new Date()): string {
     throw new ApodError("Informe uma data válida no formato AAAA-MM-DD.", 400);
   }
 
-  const today = now.toISOString().slice(0, 10);
+  const today = getApodCurrentDate(now);
   if (input < FIRST_APOD_DATE || input > today) {
     throw new ApodError(
       `A data deve estar entre ${FIRST_APOD_DATE} e ${today}.`,
@@ -64,10 +64,7 @@ function requiredString(
 
 function secureUrl(value: unknown, required: true): string;
 function secureUrl(value: unknown, required: false): string | undefined;
-function secureUrl(
-  value: unknown,
-  required: boolean,
-): string | undefined {
+function secureUrl(value: unknown, required: boolean): string | undefined {
   if (value === undefined && !required) {
     return undefined;
   }
@@ -116,7 +113,7 @@ function parseApod(value: unknown, requestedDate: string): Apod {
 
   if (mediaType === "image" && isGenericNasaPlaceholder(mediaUrl)) {
     throw new ApodError(
-      "A NASA retornou uma imagem indisponível para este APOD. Tente novamente mais tarde.",
+      "A NASA retornou uma imagem indisponível para este APOD.",
       502,
     );
   }
@@ -130,6 +127,189 @@ function parseApod(value: unknown, requestedDate: string): Apod {
     ...(hdurl ? { hdurl } : {}),
     ...(thumbnailUrl ? { thumbnailUrl } : {}),
   };
+}
+
+function getArticleSlugPrefix(date: string): string {
+  const month = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    timeZone: "UTC",
+  })
+    .format(new Date(`${date}T00:00:00.000Z`))
+    .toLowerCase();
+  return `apod-${date.slice(0, 4)}-${month}-${Number(date.slice(8, 10))}`;
+}
+
+function getWordPressPost(value: unknown, date: string): string {
+  if (!Array.isArray(value)) {
+    throw new ApodError("A NASA Science retornou uma resposta inválida.", 502);
+  }
+
+  const slugPrefix = getArticleSlugPrefix(date);
+  const post = value.find(
+    (item): item is Record<string, unknown> =>
+      isRecord(item) &&
+      typeof item.slug === "string" &&
+      (item.slug === slugPrefix || item.slug.startsWith(`${slugPrefix}-`)) &&
+      typeof item.date === "string" &&
+      item.date.slice(0, 10) === date,
+  );
+
+  if (!post) {
+    throw new ApodError(
+      `O APOD de ${date} não foi encontrado no catálogo oficial da NASA.`,
+      502,
+    );
+  }
+
+  if (!isRecord(post.content)) {
+    throw new ApodError("A NASA Science retornou dados incompletos.", 502);
+  }
+  const rendered = post.content.rendered;
+  if (typeof rendered !== "string" || rendered.trim() === "") {
+    throw new ApodError("A NASA Science retornou dados incompletos.", 502);
+  }
+  return rendered;
+}
+
+function parseWordPressApod(html: string, date: string): Apod {
+  const article = parse(html);
+  const title = article.querySelector("h1")?.text.trim();
+  const description =
+    article.querySelector(".media-detail-hero__description")?.text.trim();
+  if (!title || !description) {
+    throw new ApodError("A NASA Science retornou dados incompletos.", 502);
+  }
+
+  const media = article.querySelector(".media-detail-hero__media") ?? article;
+  const image = media.querySelector("img");
+  const iframe = media.querySelector("iframe");
+  const video = media.querySelector("video");
+
+  let mediaType: Apod["mediaType"];
+  let url: string;
+  if (iframe) {
+    mediaType = "video";
+    url = secureUrl(iframe.getAttribute("src"), true);
+  } else if (video) {
+    mediaType = "video";
+    const source =
+      video.getAttribute("src") ??
+      video.querySelector("source")?.getAttribute("src");
+    url = secureUrl(source, true);
+  } else if (image) {
+    mediaType = "image";
+    url = secureUrl(image.getAttribute("src"), true);
+  } else {
+    throw new ApodError(
+      "A NASA Science não retornou mídia para este APOD.",
+      502,
+    );
+  }
+
+  const hdurl =
+    mediaType === "image" && image
+      ? secureUrl(image.closest("a")?.getAttribute("href"), false)
+      : undefined;
+  const thumbnailUrl =
+    mediaType === "video" && image
+      ? secureUrl(image.getAttribute("src"), false)
+      : undefined;
+  const explanation = description
+    .replace(/^Explanation:\s*/i, "")
+    .replace(/\s*Tomorrow(?:'|’|&rsquo;)s picture:[\s\S]*$/i, "")
+    .trim();
+
+  if (!explanation) {
+    throw new ApodError("A NASA Science retornou dados incompletos.", 502);
+  }
+
+  return {
+    date,
+    title,
+    explanation,
+    mediaType,
+    url,
+    ...(hdurl ? { hdurl } : {}),
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
+  };
+}
+
+async function fetchPrimaryApod(
+  date: string,
+  apiKey: string,
+  fetcher: typeof fetch,
+): Promise<Apod> {
+  const url = new URL("https://api.nasa.gov/planetary/apod");
+  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("date", date);
+  url.searchParams.set("thumbs", "true");
+
+  let response: Response;
+  try {
+    response = await fetcher(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(NASA_API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new ApodError("A consulta à API da NASA excedeu o tempo limite.", 504);
+    }
+    throw new ApodError("Não foi possível conectar à API da NASA.", 502);
+  }
+
+  if (!response.ok) {
+    throw new ApodError("A API da NASA não conseguiu fornecer este APOD.", 502);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ApodError("A API da NASA retornou uma resposta inválida.", 502);
+  }
+
+  return parseApod(payload, date);
+}
+
+async function fetchNasaScienceApod(
+  date: string,
+  fetcher: typeof fetch,
+): Promise<Apod> {
+  const url = new URL(
+    "https://science.nasa.gov/wp-json/wp/v2/image-article",
+  );
+  url.searchParams.set("search", getArticleSlugPrefix(date));
+  url.searchParams.set("per_page", "5");
+  url.searchParams.set("_fields", "date,slug,content");
+
+  let response: Response;
+  try {
+    response = await fetcher(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(NASA_SCIENCE_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new ApodError(
+        "A consulta alternativa da NASA excedeu o tempo limite.",
+        504,
+      );
+    }
+    throw new ApodError("Não foi possível conectar à NASA Science.", 502);
+  }
+
+  if (!response.ok) {
+    throw new ApodError("A NASA Science não conseguiu fornecer este APOD.", 502);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ApodError("A NASA Science retornou uma resposta inválida.", 502);
+  }
+
+  return parseWordPressApod(getWordPressPost(payload, date), date);
 }
 
 export async function fetchApod(
@@ -146,34 +326,16 @@ export async function fetchApod(
     );
   }
 
-  const url = new URL("https://api.nasa.gov/planetary/apod");
-  url.searchParams.set("api_key", apiKey);
-  url.searchParams.set("date", date);
-  url.searchParams.set("thumbs", "true");
-
-  let response: Response;
   try {
-    response = await fetcher(url, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new ApodError("A consulta à NASA excedeu o tempo limite.", 504);
+    return await fetchPrimaryApod(date, apiKey, fetcher);
+  } catch (primaryError) {
+    if (
+      primaryError instanceof ApodError &&
+      primaryError.statusCode === 400
+    ) {
+      throw primaryError;
     }
-    throw new ApodError("Não foi possível conectar à API da NASA.", 502);
   }
 
-  if (!response.ok) {
-    throw new ApodError("A NASA não conseguiu fornecer este APOD.", 502);
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ApodError("A NASA retornou uma resposta inválida.", 502);
-  }
-
-  return parseApod(payload, date);
+  return fetchNasaScienceApod(date, fetcher);
 }
