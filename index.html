@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore a imagem astronômica do dia da NASA."
+    />
+    <meta name="theme-color" content="#101b2d" />
+    <title>Cosmos — Imagem Astronômica do Dia</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+    <header class="site-header" id="inicio">
+      <div class="header-inner">
+        <a class="brand" href="#inicio" aria-label="Cosmos — início">
+          COSMOS<span aria-hidden="true">.</span>
+        </a>
+        <nav class="primary-nav" aria-label="Navegação principal">
+          <a href="#apod">Imagem do dia</a>
+          <a href="#explicacao">Sobre o APOD</a>
+        </nav>
+        <a
+          class="nasa-link"
+          href="https://apod.nasa.gov/apod/astropix.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          NASA APOD <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="page-shell" id="main-content">
+      <section
+        class="apod-layout"
+        id="apod"
+        aria-labelledby="apod-title"
+        aria-busy="true"
+      >
+        <figure class="media-panel" id="media-panel">
+          <div class="media-content" id="media-content">
+            <p class="media-placeholder">Preparando sua janela para o universo…</p>
+          </div>
+          <figcaption class="media-caption" id="media-caption" hidden></figcaption>
+        </figure>
+
+        <div class="story-panel">
+          <p class="eyebrow">NASA <span aria-hidden="true">·</span> ASTRONOMY PICTURE OF THE DAY</p>
+          <time class="apod-date" id="apod-date-label" hidden></time>
+          <h1 id="apod-title">Uma nova janela para o universo.</h1>
+          <p class="story-intro">
+            Uma imagem do cosmos, acompanhada pela explicação de quem estuda o céu.
+          </p>
+
+          <form class="date-form" id="date-form">
+            <label for="apod-date">Escolha uma data</label>
+            <div class="date-controls">
+              <input id="apod-date" name="date" type="date" required />
+              <button type="submit">Ver APOD</button>
+            </div>
+          </form>
+
+          <p class="status-message" id="loading-state" role="status" aria-live="polite" aria-atomic="true"></p>
+          <p class="error-message" id="error-state" role="alert" hidden></p>
+        </div>
+      </section>
+
+      <section
+        class="explanation-panel"
+        id="explicacao"
+        aria-labelledby="explanation-title"
+        hidden
+      >
+        <p class="eyebrow">EM PERSPECTIVA</p>
+        <h2 id="explanation-title">A história por trás da imagem</h2>
+        <p id="apod-explanation"></p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p>Uma janela diária para o universo.</p>
+        <p>Conteúdo fornecido pela NASA Astronomy Picture of the Day.</p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/client/main.ts"></script>
+  </body>
+</html>
