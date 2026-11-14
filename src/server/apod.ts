@@ -86,6 +86,14 @@ function secureUrl(
   }
 }
 
+function isGenericNasaPlaceholder(value: string): boolean {
+  const url = new URL(value);
+  return (
+    url.hostname === "science.nasa.gov" &&
+    url.pathname.endsWith("/nasa-logo@2x.png")
+  );
+}
+
 function parseApod(value: unknown, requestedDate: string): Apod {
   if (!isRecord(value)) {
     throw new ApodError("A NASA retornou uma resposta inválida.", 502);
@@ -101,15 +109,24 @@ function parseApod(value: unknown, requestedDate: string): Apod {
     throw new ApodError("Este tipo de mídia não é suportado.", 502);
   }
 
+  const sourceUrl = secureUrl(value.url, true);
   const hdurl = secureUrl(value.hdurl, false);
   const thumbnailUrl = secureUrl(value.thumbnail_url, false);
+  const mediaUrl = mediaType === "image" && hdurl ? hdurl : sourceUrl;
+
+  if (mediaType === "image" && isGenericNasaPlaceholder(mediaUrl)) {
+    throw new ApodError(
+      "A NASA retornou uma imagem indisponível para este APOD. Tente novamente mais tarde.",
+      502,
+    );
+  }
 
   return {
     date,
     title: requiredString(value, "title"),
     explanation: requiredString(value, "explanation"),
     mediaType,
-    url: secureUrl(value.url, true),
+    url: mediaUrl,
     ...(hdurl ? { hdurl } : {}),
     ...(thumbnailUrl ? { thumbnailUrl } : {}),
   };

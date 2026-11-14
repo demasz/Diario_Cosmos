@@ -54,7 +54,7 @@ O Express serve os arquivos de `dist` e a rota `/api/apod` na porta `3000`. Para
 
 O navegador consulta apenas `GET /api/apod?date=AAAA-MM-DD`. O servidor valida datas entre `1995-06-16` e a data atual em UTC, consulta `https://api.nasa.gov/planetary/apod` usando `NASA_API_KEY` e retorna os campos necessários. A chave não é enviada ao navegador nem registrada nos logs. A chamada à NASA usa `thumbs=true` para receber uma prévia quando o APOD é vídeo.
 
-Imagens são exibidas de forma responsiva. Vídeos de YouTube e Vimeo reconhecidos são carregados após a pessoa selecionar “Reproduzir vídeo”; fontes não reconhecidas são oferecidas como links externos seguros. Estados de carregamento e erro são anunciados na interface.
+Imagens são exibidas de forma responsiva; quando a NASA retorna o logotipo genérico no lugar da mídia, o servidor informa erro em vez de apresentá-lo como APOD. Vídeos de YouTube e Vimeo reconhecidos são carregados após a pessoa selecionar “Reproduzir vídeo”; fontes não reconhecidas são oferecidas como links externos seguros. Estados de carregamento e erro são anunciados na interface.
 
 ## Organização
 

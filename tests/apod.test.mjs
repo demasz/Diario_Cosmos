@@ -77,7 +77,7 @@ test("requests a dated APOD with thumbnails and returns normalized image data", 
     title: "Nebulosa de teste",
     explanation: "Descrição do conteúdo astronômico.",
     mediaType: "image",
-    url: "https://images.example.test/apod.jpg",
+    url: "https://images.example.test/apod-hd.jpg",
     hdurl: "https://images.example.test/apod-hd.jpg",
   });
 });
@@ -103,6 +103,21 @@ test("normalizes video data and preserves its optional thumbnail", async () => {
     "https://images.example.test/video-preview.jpg",
   );
   assert.equal("hdurl" in apod, true);
+});
+
+test("uses the HD image URL when provided", async () => {
+  const apod = await fetchApod(
+    validDate,
+    testKey,
+    async () =>
+      jsonResponse({
+        ...imageResponse,
+        url: "https://science.nasa.gov/apod/permalink",
+      }),
+    today,
+  );
+
+  assert.equal(apod.url, "https://images.example.test/apod-hd.jpg");
 });
 
 test("does not call NASA when the date or server key is invalid", async () => {
@@ -166,6 +181,27 @@ test("returns sanitized errors for upstream failures and invalid payloads", asyn
       today,
     ),
     assertApodError(502),
+  );
+
+  await assert.rejects(
+    fetchApod(
+      validDate,
+      testKey,
+      async () =>
+        jsonResponse({
+          ...imageResponse,
+          title: "NASA Science",
+          url: "https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png",
+          hdurl:
+            "https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png",
+        }),
+      today,
+    ),
+    (error) => {
+      assertApodError(502)(error);
+      assert.match(error.message, /imagem indisponível/i);
+      return true;
+    },
   );
 });
 
