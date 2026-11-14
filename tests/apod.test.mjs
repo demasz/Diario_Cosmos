@@ -118,7 +118,11 @@ test("does not call NASA when the date or server key is invalid", async () => {
   );
   await assert.rejects(
     fetchApod(validDate, "", fetcher, today),
-    assertApodError(503),
+    (error) => {
+      assertApodError(503)(error);
+      assert.match(error.message, /NASA_API_KEY/);
+      return true;
+    },
   );
   assert.equal(requestCount, 0);
 });

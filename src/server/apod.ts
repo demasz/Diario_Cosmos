@@ -123,7 +123,10 @@ export async function fetchApod(
 ): Promise<Apod> {
   const date = validateApodDate(inputDate, now);
   if (!apiKey?.trim()) {
-    throw new ApodError("A chave da API da NASA não está configurada.", 503);
+    throw new ApodError(
+      "Configure NASA_API_KEY no arquivo .env local para consultar a NASA.",
+      503,
+    );
   }
 
   const url = new URL("https://api.nasa.gov/planetary/apod");

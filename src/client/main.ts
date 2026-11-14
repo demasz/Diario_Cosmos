@@ -288,9 +288,11 @@ async function loadApod(date: string): Promise<void> {
     }
     titleElement.textContent = "Não foi possível carregar o APOD.";
     errorState.textContent =
-      error instanceof Error
-        ? error.message
-        : "Ocorreu um erro inesperado. Tente novamente.";
+      error instanceof TypeError
+        ? "Não foi possível conectar ao servidor. Inicie o projeto com npm run dev e tente novamente."
+        : error instanceof Error
+          ? error.message
+          : "Ocorreu um erro inesperado. Tente novamente.";
     errorState.hidden = false;
   } finally {
     if (activeController === controller) {
