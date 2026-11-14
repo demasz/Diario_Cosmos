@@ -18,14 +18,18 @@ function requiredElement<T extends Element>(selector: string): T {
   return element;
 }
 
-function parseApod(value: unknown): Apod {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseApod(value: unknown, requestedDate: string): Apod {
+  if (!isRecord(value)) {
     throw new Error("A resposta do servidor não está no formato esperado.");
   }
 
-  const record = value as Record<string, unknown>;
+  const record = value;
   if (
-    typeof record.date !== "string" ||
+    record.date !== requestedDate ||
     typeof record.title !== "string" ||
     typeof record.explanation !== "string" ||
     (record.mediaType !== "image" && record.mediaType !== "video") ||
@@ -277,7 +281,7 @@ async function loadApod(date: string): Promise<void> {
     if (controller.signal.aborted) {
       return;
     }
-    showApod(parseApod(payload));
+    showApod(parseApod(payload, date));
   } catch (error) {
     if (controller.signal.aborted) {
       return;
