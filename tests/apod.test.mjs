@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApodError, fetchApod, validateApodDate } from "../src/server/apod.ts";
-import { getApodCurrentDate } from "../src/shared/apod-date.ts";
+import {
+  formatApodDate,
+  getApodCurrentDate,
+  parseBrazilianApodDate,
+} from "../src/shared/apod-date.ts";
 
 const now = new Date("2026-11-14T12:00:00.000Z");
 const validDate = "2026-11-14";
@@ -54,6 +58,17 @@ function assertApodError(statusCode) {
 test("accepts the first APOD date and the current APOD date", () => {
   assert.equal(validateApodDate("1995-06-16", now), "1995-06-16");
   assert.equal(validateApodDate(validDate, now), validDate);
+});
+
+test("formats visible APOD dates as Brazilian DD/MM/YYYY", () => {
+  assert.equal(formatApodDate("2026-04-05"), "05/04/2026");
+});
+
+test("parses Brazilian date input and rejects invalid calendar dates", () => {
+  assert.equal(parseBrazilianApodDate("05/04/2026"), "2026-04-05");
+  assert.equal(parseBrazilianApodDate("29/02/2024"), "2024-02-29");
+  assert.equal(parseBrazilianApodDate("31/02/2026"), undefined);
+  assert.equal(parseBrazilianApodDate("5/4/2026"), undefined);
 });
 
 test("uses the NASA publication date across the New York midnight boundary", () => {

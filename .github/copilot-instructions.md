@@ -22,6 +22,7 @@ Estas instrucoes se aplicam a todo o repositorio. O projeto deve exibir a imagem
   - `src/server/apod.ts`: valida a data, consulta a API APOD primaria, aplica fallback na API oficial da NASA Science e converte a resposta para o contrato usado pelo cliente.
   - `src/shared/apod-date.ts`: calcula a data atual do APOD em `America/New_York`, compartilhada pelo frontend e backend.
 - O navegador deve chamar somente `/api/apod?date=YYYY-MM-DD`. Na primeira abertura, solicite a data atual; ao selecionar outra data valida, solicite e exiba o APOD correspondente.
+- Mantenha os textos próprios da interface em portugues; preserve titulo e explicacao no idioma fornecido pela NASA. Exiba datas como `DD/MM/AAAA` e mantenha `YYYY-MM-DD` no contrato da API.
 - Valide a data no servidor: formato e data de calendario validos, entre `1995-06-16` (primeiro dia do APOD) e a data atual em `America/New_York`, inclusive. Rejeite entrada invalida com status HTTP apropriado e mensagem segura. Nao aceite URL de destino fornecida pelo cliente.
 - Modele a resposta com tipos TypeScript. Trate explicitamente respostas HTTP malsucedidas, JSON invalido, campos necessarios ausentes e tipos de midia desconhecidos; nao mostre sucesso vazio nem esconda erros.
 - Para `image`, use uma imagem responsiva com texto alternativo significativo. Para `video`, incorpore somente URLs reconhecidas e transformadas para hosts de video permitidos; use `thumbnail_url` como previa quando houver e ofereca um link externo seguro como alternativa. Nunca crie um `iframe` para um host arbitrario.

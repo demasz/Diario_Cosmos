@@ -47,7 +47,9 @@ app.use(
       "Unexpected server error:",
       error instanceof Error ? error.name : "UnknownError",
     );
-    response.status(500).json({ error: "Não foi possível carregar o APOD." });
+    response
+      .status(500)
+      .json({ error: "Não foi possível carregar a imagem do dia." });
   },
 );
 

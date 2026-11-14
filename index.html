@@ -19,7 +19,7 @@
         </a>
         <nav class="primary-nav" aria-label="Navegação principal">
           <a href="#apod">Imagem do dia</a>
-          <a href="#explicacao">Sobre o APOD</a>
+          <a href="#explicacao">Sobre a imagem do dia</a>
         </nav>
         <a
           class="nasa-link"
@@ -27,7 +27,7 @@
           target="_blank"
           rel="noopener noreferrer"
         >
-          NASA APOD <span aria-hidden="true">↗</span>
+          Imagem do dia na NASA <span aria-hidden="true">↗</span>
         </a>
       </div>
     </header>
@@ -47,18 +47,28 @@
         </figure>
 
         <div class="story-panel">
-          <p class="eyebrow">NASA <span aria-hidden="true">·</span> ASTRONOMY PICTURE OF THE DAY</p>
+          <p class="eyebrow">NASA <span aria-hidden="true">·</span> IMAGEM ASTRONÔMICA DO DIA</p>
           <time class="apod-date" id="apod-date-label" hidden></time>
           <h1 id="apod-title">Uma nova janela para o universo.</h1>
           <p class="story-intro">
             Uma imagem do cosmos, acompanhada pela explicação de quem estuda o céu.
+            O título e a explicação são exibidos no idioma original da NASA.
           </p>
 
           <form class="date-form" id="date-form">
-            <label for="apod-date">Escolha uma data</label>
+            <label for="apod-date">Escolha uma data (DD/MM/AAAA)</label>
             <div class="date-controls">
-              <input id="apod-date" name="date" type="date" required />
-              <button type="submit">Ver APOD</button>
+              <input
+                id="apod-date"
+                name="date"
+                type="text"
+                inputmode="numeric"
+                placeholder="DD/MM/AAAA"
+                maxlength="10"
+                autocomplete="off"
+                required
+              />
+              <button type="submit">Ver imagem</button>
             </div>
           </form>
 
@@ -82,7 +92,7 @@
     <footer class="site-footer">
       <div class="footer-inner">
         <p>Uma janela diária para o universo.</p>
-        <p>Conteúdo fornecido pela NASA Astronomy Picture of the Day.</p>
+        <p>Conteúdo fornecido pela NASA — Imagem Astronômica do Dia.</p>
       </div>
     </footer>
 

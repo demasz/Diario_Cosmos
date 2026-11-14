@@ -1,5 +1,9 @@
 import { parse } from "node-html-parser";
-import { FIRST_APOD_DATE, getApodCurrentDate } from "../shared/apod-date.ts";
+import {
+  FIRST_APOD_DATE,
+  formatApodDate,
+  getApodCurrentDate,
+} from "../shared/apod-date.ts";
 
 export interface Apod {
   date: string;
@@ -33,13 +37,13 @@ export function validateApodDate(input: unknown, now = new Date()): string {
     Number.isNaN(Date.parse(`${input}T00:00:00.000Z`)) ||
     new Date(`${input}T00:00:00.000Z`).toISOString().slice(0, 10) !== input
   ) {
-    throw new ApodError("Informe uma data válida no formato AAAA-MM-DD.", 400);
+    throw new ApodError("Informe uma data válida.", 400);
   }
 
   const today = getApodCurrentDate(now);
   if (input < FIRST_APOD_DATE || input > today) {
     throw new ApodError(
-      `A data deve estar entre ${FIRST_APOD_DATE} e ${today}.`,
+      `A data deve estar entre ${formatApodDate(FIRST_APOD_DATE)} e ${formatApodDate(today)}.`,
       400,
     );
   }
@@ -57,7 +61,10 @@ function requiredString(
 ): string {
   const value = record[field];
   if (typeof value !== "string" || value.trim() === "") {
-    throw new ApodError("A NASA retornou dados incompletos para este APOD.", 502);
+    throw new ApodError(
+      "A NASA retornou dados incompletos para esta imagem do dia.",
+      502,
+    );
   }
   return value;
 }
@@ -113,7 +120,7 @@ function parseApod(value: unknown, requestedDate: string): Apod {
 
   if (mediaType === "image" && isGenericNasaPlaceholder(mediaUrl)) {
     throw new ApodError(
-      "A NASA retornou uma imagem indisponível para este APOD.",
+      "A NASA retornou uma imagem indisponível para esta data.",
       502,
     );
   }
@@ -156,7 +163,7 @@ function getWordPressPost(value: unknown, date: string): string {
 
   if (!post) {
     throw new ApodError(
-      `O APOD de ${date} não foi encontrado no catálogo oficial da NASA.`,
+      `A imagem do dia de ${formatApodDate(date)} não foi encontrada no catálogo oficial da NASA.`,
       502,
     );
   }
@@ -201,7 +208,7 @@ function parseWordPressApod(html: string, date: string): Apod {
     url = secureUrl(image.getAttribute("src"), true);
   } else {
     throw new ApodError(
-      "A NASA Science não retornou mídia para este APOD.",
+      "A NASA Science não retornou mídia para esta data.",
       502,
     );
   }
@@ -258,7 +265,10 @@ async function fetchPrimaryApod(
   }
 
   if (!response.ok) {
-    throw new ApodError("A API da NASA não conseguiu fornecer este APOD.", 502);
+    throw new ApodError(
+      "A API da NASA não conseguiu fornecer a imagem desta data.",
+      502,
+    );
   }
 
   let payload: unknown;
@@ -299,7 +309,10 @@ async function fetchNasaScienceApod(
   }
 
   if (!response.ok) {
-    throw new ApodError("A NASA Science não conseguiu fornecer este APOD.", 502);
+    throw new ApodError(
+      "A NASA Science não conseguiu fornecer a imagem desta data.",
+      502,
+    );
   }
 
   let payload: unknown;

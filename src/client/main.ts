@@ -1,4 +1,9 @@
-import { FIRST_APOD_DATE, getApodCurrentDate } from "../shared/apod-date.ts";
+import {
+  FIRST_APOD_DATE,
+  formatApodDate,
+  getApodCurrentDate,
+  parseBrazilianApodDate,
+} from "../shared/apod-date.ts";
 import "./styles.css";
 
 interface Apod {
@@ -69,9 +74,38 @@ const submitButton = requiredElement<HTMLButtonElement>(
 );
 
 const today = getApodCurrentDate();
-dateInput.min = FIRST_APOD_DATE;
-dateInput.max = today;
-dateInput.value = today;
+dateInput.value = formatApodDate(today);
+
+function formatBrazilianDateInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length > 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  }
+  if (digits.length > 2) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+  return digits;
+}
+
+dateInput.addEventListener("input", () => {
+  const caret = dateInput.selectionStart ?? dateInput.value.length;
+  const digitsBeforeCaret = dateInput.value
+    .slice(0, caret)
+    .replace(/\D/g, "").length;
+  dateInput.value = formatBrazilianDateInput(dateInput.value);
+  const formattedCaret =
+    digitsBeforeCaret +
+    Number(digitsBeforeCaret > 2) +
+    Number(digitsBeforeCaret > 4);
+  dateInput.setSelectionRange(formattedCaret, formattedCaret);
+  dateInput.setCustomValidity("");
+});
+
+dateInput.addEventListener("invalid", () => {
+  if (dateInput.validity.valueMissing) {
+    dateInput.setCustomValidity("Informe uma data no formato DD/MM/AAAA.");
+  }
+});
 
 let activeController: AbortController | undefined;
 
@@ -212,13 +246,6 @@ function renderMedia(apod: Apod): void {
   setCaption(apod);
 }
 
-function formatApodDate(date: string): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "long",
-    timeZone: "UTC",
-  }).format(new Date(`${date}T00:00:00.000Z`));
-}
-
 function showApod(apod: Apod): void {
   renderMedia(apod);
   titleElement.textContent = apod.title;
@@ -233,7 +260,7 @@ function setLoading(isLoading: boolean, date: string): void {
   apodSection.setAttribute("aria-busy", String(isLoading));
   submitButton.disabled = isLoading;
   loadingState.textContent = isLoading
-    ? `Carregando o APOD de ${formatApodDate(date)}…`
+    ? `Carregando a imagem do dia de ${formatApodDate(date)}…`
     : "";
 }
 
@@ -245,7 +272,7 @@ async function loadApod(date: string): Promise<void> {
   setLoading(true, date);
   errorState.hidden = true;
   errorState.textContent = "";
-  titleElement.textContent = "Carregando APOD…";
+  titleElement.textContent = "Carregando imagem do dia…";
   dateLabel.hidden = true;
   explanationElement.textContent = "";
   explanationPanel.hidden = true;
@@ -274,7 +301,7 @@ async function loadApod(date: string): Promise<void> {
         "error" in payload &&
         typeof payload.error === "string"
           ? payload.error
-          : "Não foi possível carregar esta imagem. Tente novamente.";
+          : "Não foi possível carregar este conteúdo. Tente novamente.";
       throw new Error(serverMessage);
     }
 
@@ -286,7 +313,7 @@ async function loadApod(date: string): Promise<void> {
     if (controller.signal.aborted) {
       return;
     }
-    titleElement.textContent = "Não foi possível carregar o APOD.";
+    titleElement.textContent = "Não foi possível carregar a imagem do dia.";
     errorState.textContent =
       error instanceof TypeError
         ? "Não foi possível conectar ao servidor. Inicie o projeto com npm run dev e tente novamente."
@@ -303,10 +330,21 @@ async function loadApod(date: string): Promise<void> {
 
 dateForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (!dateInput.reportValidity() || !dateInput.value) {
+  const date = parseBrazilianApodDate(dateInput.value);
+  if (!date) {
+    dateInput.setCustomValidity("Informe uma data válida no formato DD/MM/AAAA.");
+    dateInput.reportValidity();
     return;
   }
-  void loadApod(dateInput.value);
+  if (date < FIRST_APOD_DATE || date > today) {
+    dateInput.setCustomValidity(
+      `Escolha uma data entre ${formatApodDate(FIRST_APOD_DATE)} e ${formatApodDate(today)}.`,
+    );
+    dateInput.reportValidity();
+    return;
+  }
+  dateInput.setCustomValidity("");
+  void loadApod(date);
 });
 
 void loadApod(today);

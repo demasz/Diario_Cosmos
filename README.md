@@ -56,6 +56,8 @@ O navegador consulta apenas `GET /api/apod?date=AAAA-MM-DD`. O servidor valida d
 
 A chave nunca é enviada ao navegador nem registrada nos logs. A chamada primária usa `thumbs=true` para receber uma prévia quando o APOD é vídeo. Os dois provedores são consultados apenas no servidor e têm timeout independente.
 
+Os textos da interface estão em português; título e explicação permanecem no idioma publicado pela NASA. As datas exibidas usam o formato brasileiro `DD/MM/AAAA`, enquanto a API continua recebendo `AAAA-MM-DD`.
+
 Imagens são exibidas de forma responsiva; quando a NASA retorna o logotipo genérico no lugar da mídia, o servidor informa erro em vez de apresentá-lo como APOD. Vídeos de YouTube e Vimeo reconhecidos são carregados após a pessoa selecionar “Reproduzir vídeo”; fontes não reconhecidas são oferecidas como links externos seguros. Estados de carregamento e erro são anunciados na interface.
 
 ## Organização
